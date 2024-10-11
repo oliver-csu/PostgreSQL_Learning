@@ -347,3 +347,467 @@ psql -h 127.0.0.1 -p 5432 -U user_oliver -W
 ```
 
 这种权限的赋予方式，可以用管理员用户去构建整体表结构，分配指定用户，赋予不同的权限，就不怕用户误操作了。
+
+# 六、PostgreSQL图形化界面pgAdmin安装使用
+
+图形化界面可以连接PostgreSQL的很多，Navicat（收费）。
+
+也可以直接使用PostgreSQL官方提供的图形化界面（完全免费）。
+
+pgAdmin官方地址：https://www.pgadmin.org/
+
+Windows安装包下载地址：https://www.postgresql.org/ftp/pgadmin/pgadmin4/v6.9/windows/
+
+下载后，一直下一步进行傻瓜式安装。
+
+## 打开pgAdmin
+
+![首次打开设置密码](./assets/20241011/4469cb29ad264370a062003171e87b86.png)
+
+## 添加一个连接
+
+![添加一个连接](./assets/20241011/887772b05f504814b326794ca72051f4.png)
+
+保存
+
+## 查看数据库的信息
+
+![查看连接](./assets/20241011/23b5dd8af15c4bdc837910ead0cb3e89.png)
+
+## 切换语言
+
+![切换语言](./assets/20241011/61b55c22e93349f097d76d09b0e66285.png)
+
+# 七、PostgreSQL数据类型
+
+PostgreSQL支持的类型特别丰富，大多数的类型和MySQL都有对应的关系
+
+| 名称       | 说明                                                                                 | 对比MySQL                                                             |
+| ---------- |------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| 布尔类型   | boolean，标准的布尔类型，只能存储true，false                                                     | MySQL中虽然没有对应的boolean，但是有替换的类型，数值的tinyint类型，和PostgreSQL的boolean都是占1个字节。 |
+| 整型       | smallint（2字节），integer（4字节），bigint（8字节）                                             | 跟MySQL没啥区别。                                                         |
+| 浮点型     | decimal，numeric（和decimal一样，精准浮点型），real（float），double precision（double），money（货币类型） | 和MySQL基本也没区别，MySQL支持float，double，decimal。MySQL没有这个货币类型。             |
+| 字符串类型 | varchar(n)（character varying），char(n)（character），text                              | 这里和MySQL基本没区别。但PostgreSQL存储的varchar类型，可以存储一个G。MySQL最大存储65535b。      |
+| 日期类型   | date（年月日），time（时分秒），timestamp（年月日时分秒）（time和timestamp可以设置时区）                        | 没啥说的，和MySQL基本没区别，但MySQL有个datetime。                                  |
+| 二进制类型 | bytea-存储二进制类型                                                                      | MySQL也支持，MySQL中是blob                                                |
+| 位图类型   | bit(n)（定长位图），bit varying(n)（可变长度位图）                                                | 就是存储0，1。MySQL也有，用的不多。                                           |
+| 枚举类型   | enum，跟Java的enum一样                                                                  | MySQL支持。                                                            |
+| 几何类型   | 点，直线，线段，圆等等                                                                        | MySQL不支持，一般开发不用。                                                    |
+| 数组类型   | 在类型后，追加[]，代表存储数组                                                                   | MySQL不支持                                                            |
+| JSON类型   | json（存储JSON数据的文本），jsonb（存储JSON二进制）                                                 | 可以存储JSON，MySQL8.x也支持                                                |
+| ip类型     | cidr（存储ip地址）                                                                       | MySQL不支持                                                            |
+
+其他类型：http://www.postgres.cn/docs/12/datatype.html
+
+# 八、PostgreSQL基本操作和数据类型
+
+## 8.1 单引号和双引号
+
+在PostgreSQL中，写SQL语句时：
+
+* 单引号用来标识实际的值；
+* 双引号用来标识一个关键字，比如表名，字段名。
+
+```sql
+-- 单引号写具体的值，双引号类似MySQL的``标记，用来填充关键字
+-- 下面的葡萄牙会报错，因为葡萄牙不是关键字
+select 1.414,'卡塔尔',"葡萄牙";
+```
+
+## 8.2 数据类型转换
+
+第一种方式：只需要在值的前面，添加上具体的数据类型即可
+
+```sql
+-- 将字符串转成位图类型
+select bit '010101010101001';
+```
+
+第二种方式：也可以在具体值的后面，添加上 ::类型，来指定
+
+```sql
+-- 数据类型
+select '2011-11-11'::date;
+select '101010101001'::bit(20);
+select '13'::int;
+```
+
+第三种方式：使用CAST函数
+
+```sql
+-- 类型转换的完整写法
+select CAST(varchar '100' as int);
+```
+
+## 8.3 布尔类型
+
+布尔类型可以存储三个值，true，false，null
+
+```sql
+-- 布尔类型的约束没有那么强，true，false大小写随意，他会给你转，同时yes，no这种他也认识，但是需要转换
+select true,false,'yes'::boolean,boolean 'no',True,FaLse,NULL::boolean;
+```
+
+boolean类型在做and和or的逻辑操作时的结果：
+
+| 字段A | 字段B | a and b | a or b |
+| ----- | ----- | ------- | ------ |
+| true  | true  | true    | true   |
+| true  | false | false   | true   |
+| true  | NULL  | NULL    | true   |
+| false | false | false   | false  |
+| false | NULL  | false   | NULL   |
+| NULL  | NULL  | NULL    | NULL   |
+
+## 8.4 数值类型
+
+### 8.4.1 整型
+
+整型比较简单，主要就是三个：
+
+* smallint、int2：2字节
+* integer、int、int4：4字节
+* bigint、int8：8字节
+
+使用策略如下：
+
+* 正常就用integer；
+* 如果要存主键，比如雪花算法，那就bigint；
+* 要节约空间，就用smallint。
+
+### 8.4.2 浮点型
+
+浮点类型就关注两个（其实是一个）
+
+* decimal(n,m)：本质就是numeric，PostgreSQL会帮转换；
+* numeric(n,m)：PostgreSQL本质的浮点类型。
+
+针对浮点类型的数据，使用numeric即可。
+
+### 8.4.3 序列
+
+MySQL中的主键自增，是基于auto_increment去实现，没有序列的对象。
+
+PostgreSQL和Oracle十分相似，支持序列：sequence，没有auto_increment。
+
+序列的正常构建方式：
+
+```sql
+create sequence schema_oliver.table_id_seq;
+-- 查询下一个值
+select nextval('schema_oliver.table_id_seq');
+-- 查询当前值
+select currval('schema_oliver.table_id_seq');
+```
+
+注意：
+
+* 默认情况下，seqeunce的起始值是0，每次nextval递增1，最大值9223372036854775807；
+* 告诉缓存，插入的数据比较多，可以指定告诉缓存，一次性计算出20个后续的值，nextval时，就不可以不去计算，直接去高速缓存拿值，效率会有一内内的提升；
+* 序列大多数的应用，是用作表的主键自增效果。
+
+```sql
+-- 表自增
+create table schema_oliver.xxx(
+    id int8 default nextval('schema_oliver.table_id_seq'),
+    name varchar(16)
+);
+insert into schema_oliver.xxx (name) values ('xxx');
+select * from schema_oliver.xxx;
+```
+
+上面这种写法没有问题，但是很麻烦。
+
+PostgreSQL提供了序列的数据类型，可以在声明表结构时，直接指定序列的类型即可。
+
+bigserial相当于是bigint类型设置了序列实现自增。
+
+类型对应如下：
+
+* smallserial对应smallint；
+* serial对应int；
+* bigserial对应bigint。
+
+```sql
+-- 表自增
+create table schema_oliver.yyy(
+    id bigserial,   
+    name varchar(16)
+);
+insert into schema_oliver.yyy (name) values ('yyy');
+```
+
+注意：
+
+* 在drop表之后，序列不会被删除，但是序列会变为不可用的状态。 因为序列在使用serial去构建时，会绑定到指定表的指定列上。
+* 如果是单独构建序列，再构建表，使用传统方式实现，序列和表就是相对独立的。
+
+### 8.4.4 数值的常见操作
+
+针对数值可以实现加减乘除取余这5个操作
+
+还有其他的操作方式
+
+| 操作符 | 描述   | 示例    | 结果 |
+| ------ | ------ | ------- | ---- |
+| ^      | 幂     | 2 ^ 3   | 8    |
+| \|/    | 平方根 | \|/ 36  | 6    |
+| @      | 绝对值 | @ -5    | 5    |
+| &      | 与     | 31 & 16 | 16   |
+| \|     | 或     | 31\|32  | 63   |
+| <<     | 左移   | 1<<1    | 2    |
+| >>     | 右移   | 16>>1   | 8    |
+
+数值操作也提供了一些函数，比如pi()，round(数值, 位数)，floor()，ceil()
+
+## 8.5 字符串类型
+
+字符串类型用的是最多的一种，在PostgreSQL里，主要支持三种：
+
+* character（就是MySQL的char类型），定长字符串。（最大可以存储1G）
+* character varying（varchar），可变长度的字符串。（最大可以存储1G）
+* text（跟MySQL一样）长度特别长的字符串。
+
+注意： 字符串的拼接一要要使用\|\|来拼接。
+
+其他的函数，可以查看：http://www.postgres.cn/docs/12/functions-string.html
+
+## 8.6 日期类型
+
+在PostgreSQL中，核心的时间类型，就三个。
+
+* timestamp（时间戳，年月日时分秒）
+* date（年月日）
+* time（时分秒）
+
+在PostgreSQL中，声明时间的方式。
+
+只需要使用字符串正常的编写 yyyy-MM-dd HH:mm:ss 就可以转换为时间类型。
+
+直接在字符串位置使用之前讲到的数据类型转换就可以了。
+
+当前系统时间：
+
+* 可以使用now作为当前系统时间（没有时区的概念）
+  ```
+  select timestamp 'now';
+  -- 直接查询now，没有时区的概念
+  select time with time zone 'now' at time zone '08:00:00'
+  ```
+* 也可以使用current_timestamp的方式获取（推荐，默认东八区）
+
+日期类型的运算：
+
+* 正常对date类型做+，-操作，默认单位是天
+* date + time = timestamp~~~
+  ```
+  select date '2011-11-11' + time '12:12:12' ;
+  ```
+* 可以针对timestamp使用interval的方式进行 +,- 操作，在查询以时间范围为条件的内容时，可以使用
+  ```
+  select timestamp '2011-11-11 12:12:12' + interval '1day' + interval '1minute' + interval '1month';
+  ```
+
+## 8.7 枚举类型
+
+枚举类型MySQL也支持，只是没使用，PostgreSQL同样支持这种数据类型
+
+可以声明枚举类型作为表中的字段类型，这样可以无形的给表字段追加规范。
+
+```sql
+-- 声明一个星期的枚举，值自然只有周一~周日。
+create type week as enum ('Mon','Tues','Sun');
+-- 声明一张表，表中的某个字段的类型是上面声明的枚举。
+drop table test;
+create table test(
+    id bigserial ,
+    weekday week
+);
+insert into test (weekday) values ('Mon');
+insert into test (weekday) values ('Fri');
+```
+
+![枚举异常](./assets/20241011/c9f7bbd91c034952992f81aa701f8d98.png)
+
+## 8.8 IP类型
+
+PostgreSQL支持IP类型的存储，支持IPv4，IPv6，甚至MAC地址类型也支持。
+
+IP类型，可以在存储IP时，帮助做校验，其次也可以针对IP做范围查找。
+
+IP校验：
+
+![IP校验](./assets/20241011/afe45596b7f1417fb87f76510ec6d175.png)
+
+IP范围查找：
+
+![IP范围查找](./assets/20241011/d8873d97b4ec4123b5c27a4dd57371bb.png)
+
+## 8.9 JSON&JSONB类型
+
+JSON在MySQL8.x中也做了支持，但是MySQL支持的不好，因为JSON类型做查询时，基本无法给JSON字段做索引。
+
+PostgreSQL支持JSON类型以及JSONB类型，JSON和JSONB的使用基本没区别。
+
+抛开JSON类型，本质上JSON格式就是一个字符串，比如MySQL5.7不支持JSON的情况的下，使用text也可以，但是字符串类型无法校验JSON的格式，单独的字符串也没有办法只获取JSON中某个key对应的value。
+
+JSON和JSONB的区别：
+
+* JSON类型无法构建索引，JSONB类型可以创建索引；
+* JSON类型的数据中多余的空格会被存储下来，JSONB会自动取消多余的空格；
+* JSON类型甚至可以存储重复的key，JSONB不会保留多余的重复key（只保留最后一个）；
+* JSON会保留存储时key的顺序，JSONB不会保留原有顺序。
+
+JSON中key对应的value的数据类型
+
+| JSON    | PostgreSQL    |
+| ------- |---------------|
+| String  | text          |
+| number  | numeric       |
+| boolean | boolean       |
+| null    | (none)        |
+
+```json
+[
+  {"name": "张三"},
+  {"name": {
+      "info": "xxx"
+    }}
+
+]
+```
+
+操作JSON：
+
+* 上述的四种JSON存储的类型：
+  ```
+  select '9'::JSON,'null'::JSON,'"oliver"'::JSON,'true'::json;
+  select '9'::JSONB,'null'::JSONB,'"oliver"'::JSONB,'true'::JSONB;
+  ```
+* JSON数组
+  ```
+  select '[9,true,null,"我是字符串"]'::JSON;
+  ```
+
+![JSON对象](./assets/20241011/d9e02e3db28c45dfb6916a12a74229d0.png)
+
+* JSON对象
+  ```
+  select '{"name": "张三","age": 23,"birthday": "2011-11-11","gender": null}'::json;
+  select '{"name": "张三","age": 23,"birthday": "2011-11-11","gender": null}'::jsonb;
+  ```
+* 构建表存储JSON
+  ```
+  create table test(
+      id bigserial,
+      info json,
+      infob jsonb
+  );
+  insert into
+    test
+  (info,infob)   
+    values 
+  ('{"name":            "张三"              ,"age": 23,"birthday": "2011-11-11","gender": null}',
+  '{"name":               "张三"             ,"age": 23,"birthday": "2011-11-11","gender": null}')
+  select * from test;
+  ```
+
+![JSON构建索引](./assets/20241011/998c78f42473438f8697b2f79d72a6a4.png)
+
+* 构建索引的效果
+  ```
+  create index json_index on test(info);
+  create index jsonb_index on test(infob);
+  ```
+
+JSON还支持很多函数，可以在文档中查询：http://www.postgres.cn/docs/12/functions-json.html
+
+## 8.10 复合类型
+
+复合类型就好像Java中的一个对象，Java中有一个User，User和表做了一个映射，User中有个人信息对象，基于符合类型映射个人信息。
+
+```Java
+public class User {
+   private Integer id;
+   private Info info;
+}
+
+class Info {
+   private String name;
+   private Integer age;
+}
+```
+
+按照上面的情况，将Info构建成一个复合类型
+
+```sql
+-- 构建复合类型，映射上Info
+create type type_info as (name varchar(32),age int);
+-- 构建表，映射User
+create table tb_user(
+    id serial,
+    info type_info
+);
+-- 添加数据
+insert into tb_user (info) values (('张三',23));
+insert into tb_user (info) values (('露丝',233));
+insert into tb_user (info) values (('jack',33));
+insert into tb_user (info) values (('李四',24));
+select * from tb_user;
+```
+
+## 8.11 数组类型
+
+数组还是要依赖其他类型，比如在设置住址，住址可能有多个住址，可以采用数组类型去修饰字符串。
+
+PostgreSQL中，指定数组的方式就是[]，可以指定一维数组，也支持二维甚至更多维数组。
+
+构建数组的方式：
+
+```sql
+drop table test;
+create table test(
+    id serial,
+    col1 int[],
+    col2 int[2],
+    col3 int[][]
+);
+-- 构建表指定数组长度后，并不是说数组内容只有2的长度，可以插入更多数据
+-- 甚至在插入数据，如果将二维数组结构的数组扔到一维数组上，也可以存储。
+-- 数组编写方式
+select '{{how,are},{are,you}}'::varchar[];
+select array[[1,2],[3,4]];
+insert into test (col1,col2,col3) values ('{1,2,3}','{4,5,6}','{7,8,9}');
+insert into test (col1,col2,col3) values ('{1,2,3}','{4,5,6}',array[[1,2],[3,4]]);
+insert into test (col1,col2,col3) values ('{1,2,3}','{4,5,6}','{{1,2},{3,4}}');
+select * from test;
+```
+
+其他特殊情况？
+
+* 如果要存储字符串数组？
+* 如果存储的数组中有双引号怎么办？
+* 如果有大括号怎么办？
+
+```sql
+-- 如果存储的数组中的值，有单引号怎么办？
+-- 使用两个单引号，作为一个单引号使用
+select '{''how''}'::varchar[];
+-- 如果存储的数组中的值，有逗号怎么办？(PGSQL中的数组索引从1开始算，写0也是从1开始算。)
+-- 用双引号将数组的数据包起来~
+select ('{"how,are"}'::varchar[])[2];
+-- 如果存储的数组中的值，有双引号怎么办？
+-- 如果要添加双引号，记得转义。
+select ('{"\"how\",are"}'::varchar[])[1];
+```
+
+数组的比较方式
+
+```sql
+-- 包含
+select array[1,2] @> array[1];
+-- 被包含
+select array[1,2] <@ array[1,2,4];
+-- 是否有相同元素
+select array[2,4,4,45,1] && array[1];
+```
