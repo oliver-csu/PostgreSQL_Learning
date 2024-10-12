@@ -1758,3 +1758,49 @@ pg_waldump
 ```
 select pg_wal_replay_resume();
 ```
+
+# 十四、PostgreSQL数据迁移工具——pgloader
+
+PostgreSQL做数据迁移的插件非常多，可以从MySQL迁移到PostgreSQL，也可以基于其他数据源迁移到PostgreSQL。
+
+这种迁移的插件很多，这里只以pgloader举例，pgloader使用起来特别的方便。
+
+以MySQL数据迁移到PostgreSQL为例，分为几个操作：
+
+1、准备MySQL服务（防火墙问题，远程连接问题，权限问题）
+
+准备了一个数据库，里面大概有26W条左右的数据。
+
+2、准备PostgreSQL的服务
+
+3、安装pgloader
+
+pgloader可以安装在任何位置，比如安装在MySQL所在服务，或者PostgreSQL所在服务，再或者一个独立的服务都可以
+
+```bash
+# 用root用户下载
+yum -y install pgloader
+```
+
+4、准备pgloader需要的脚本文件
+
+官方文档： https://pgloader.readthedocs.io/en/latest/
+
+注意：PostgreSQL的数据库要提前构建好才可以。
+
+![PGLOADER脚本](./assets/20241012/bd2da947a0e44ed1bfbef08a3f576dc6.png)
+
+5、执行脚本，完成数据迁移
+
+先确认pgloader命令可以使用
+
+![PGLOADER命令测试](./assets/20241012/2d963c672b4c4847bf0c5187d48a0aea.png)
+
+执行脚本：
+
+```
+pgloader 刚刚写好的脚本文件
+```
+
+![PGLOADER执行](./assets/20241012/56bebeef0f02497aaaa27fa5664c3142.png)
+
