@@ -69,15 +69,15 @@ Linux的版本尽量使用CentOS 7.x版本，最好是7.6或者是7.8版本。
 拿到命令直接在Linux中运行即可
 
 ```sh
-# 下载PGSQL的rpm包
+# 下载PostgreSQL的rpm包
 sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-# 安装PGSQL12的软件程序，需要下载，需要等一会，一般不会失败，即便失败，他也会重新帮你找镜像
+# 安装PostgreSQL12的软件程序，需要下载，需要等一会，一般不会失败，即便失败，他也会重新帮你找镜像
 sudo yum install -y postgresql12-server
 # 数据库初始化
 sudo /usr/pgsql-12/bin/postgresql-12-setup initdb
 # 设置开启启动项，并设置为开启自行启动
 sudo systemctl enable postgresql-12
-# 启动PGSQL
+# 启动PostgreSQL
 sudo systemctl start postgresql-12
 ```
 这种属于Windows下的傻瓜式安装，基本不会出错。
@@ -276,7 +276,7 @@ create database root;
 
 ## 5.2 权限操作
 
-权限操作前，要先掌握一下PGSQL的逻辑结构
+权限操作前，要先掌握一下PostgreSQL的逻辑结构
 
 ![逻辑结构图](./assets/20241010/0ca8c4fb119f44d5befe8020a2cd416a.png)
 
@@ -322,7 +322,7 @@ alter schema schema_oliver owner to user_oliver;
 grant select,insert,update on all tables in schema schema_oliver to user_oliver;
 -- 用postgres用户先构建一张表
 create table schema_oliver.test(id int);
--- 切换到laozheng用户。
+-- 切换到user_oliver用户。
 \c user_oliver -password 
 -- 报错：
 -- 致命错误:  对用户"-user_oliver"的对等认证失败
@@ -793,7 +793,7 @@ select * from test;
 -- 如果存储的数组中的值，有单引号怎么办？
 -- 使用两个单引号，作为一个单引号使用
 select '{''how''}'::varchar[];
--- 如果存储的数组中的值，有逗号怎么办？(PGSQL中的数组索引从1开始算，写0也是从1开始算。)
+-- 如果存储的数组中的值，有逗号怎么办？(PostgreSQL中的数组索引从1开始算，写0也是从1开始算。)
 -- 用双引号将数组的数据包起来~
 select ('{"how,are"}'::varchar[])[2];
 -- 如果存储的数组中的值，有双引号怎么办？
@@ -932,7 +932,7 @@ select * from score;
 
 为了完成级联删除的操作，需要编写pl/sql。
 
-先查看一下PGSQL支持的plsql，查看一下PostgreSQL的plsql语法
+先查看一下PostgreSQL支持的plsql，查看一下PostgreSQL的plsql语法
 
 ```sql
 [ <<label>> ]
@@ -1593,7 +1593,7 @@ pg_dump这种备份，不会造成用户对数据的操作出现阻塞。
 
 ![备份整个数据库](./assets/20241012/bd17eea943bb469abf49c08eda67777b.png)
 
-删除当前laozheng库中的表等信息，然后恢复数据
+删除当前数据库中的表等信息，然后恢复数据
 
 ![恢复整个数据库](./assets/20241012/3dfb7ccdb7f44d129d12afbcd201f68f.png)
 
@@ -1940,7 +1940,7 @@ systemctl restart postgresql-12
 
 默认情况下，这里的主从备份是异步的，导致一个问题，如果主节点写入的数据还没有备份到从节点，主节点忽然宕机了，导致后面如果基于上述方式实现主从切换，数据可能丢失。
 
-PGSQL在9.5版本后提供了一个pg_rewind的操作，基于归档日志帮咱们做一个比对，比对归档日志，是否有时间差冲突。
+PostgreSQL在9.5版本后提供了一个pg_rewind的操作，基于归档日志帮咱们做一个比对，比对归档日志，是否有时间差冲突。
 
 实现操作：
 
@@ -1962,14 +1962,14 @@ source /etc/profile
 4、从节点切换为主节点
 
 ```
-# 因为他会去找$PGDATA，我没配置，就基于-D指定一下PGSQL的data目录
+# 因为他会去找$PGDATA，我没配置，就基于-D指定一下PostgreSQL的data目录
 pg_ctl promote -D ~/12/data/
 ```
 
 5、将原主节点开机，执行命令，搞定归档日志的同步
 
 * 启动虚拟机
-* 停止PGSQL服务
+* 停止PostgreSQL服务
   ```
   pg_ctl stop -D ~/12/data
   ```
@@ -1977,7 +1977,7 @@ pg_ctl promote -D ~/12/data/
   ```
   pg_rewind -D ~/12/data/ --source-server='host=192.168.11.66 user=postgres password=postgres'
   ```
-* 如果上述命令失败，需要启动再关闭PGSQL，并且在执行，完成归档日志的同步
+* 如果上述命令失败，需要启动再关闭PostgreSQL，并且在执行，完成归档日志的同步
   ```
   pg_ctl start -D ~/12/data
   pg_ctl stop -D ~/12/data
